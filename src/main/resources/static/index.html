@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Enhanced ToDo App</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f4f4f4;
+      padding: 20px;
+    }
+
+    h1 {
+      color: #444;
+    }
+
+    input, button {
+      padding: 8px;
+      margin: 5px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+    }
+
+    button {
+      cursor: pointer;
+      background-color: #5c6bc0;
+      color: white;
+      border: none;
+    }
+
+    button:hover {
+      background-color: #3949ab;
+    }
+
+    .task {
+      margin: 10px 0;
+      padding: 10px;
+      background: white;
+      border-left: 5px solid #5c6bc0;
+      border-radius: 4px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+
+    .completed {
+      text-decoration: line-through;
+      color: green;
+      opacity: 0.6;
+    }
+
+    .btn-small {
+      padding: 4px 8px;
+      font-size: 12px;
+      margin-right: 5px;
+      border-radius: 3px;
+    }
+
+    .delete-btn {
+      background-color: crimson;
+    }
+
+    .delete-btn:hover {
+      background-color: red;
+    }
+
+    .edit-btn {
+      background-color: #ffa000;
+    }
+
+    .edit-btn:hover {
+      background-color: #ff6f00;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>📋 My ToDo List</h1>
+
+  <input type="text" id="title" placeholder="Title">
+  <input type="text" id="description" placeholder="Description">
+  <input type="date" id="dueDate" placeholder="Due Date">
+  <button onclick="addTodo()">Add Task</button>
+
+  <h2>Tasks:</h2>
+  <div id="todoList"></div>
+
+  <script>
+    const apiUrl = "http://localhost:8083/api/todos";
+    let editingId = null;
+
+    window.onload = loadTodos;
+
+    function loadTodos() {
+      fetch(apiUrl)
+        .then(res => res.json())
+        .then(todos => {
+          const list = document.getElementById("todoList");
+          list.innerHTML = "";
+          todos.forEach(todo => {
+            const div = document.createElement("div");
+            div.className = "task " + (todo.completed ? "completed" : "");
+            div.innerHTML = `
+              <strong>${todo.title}</strong><br>
+              ${todo.description}<br>
+              ${todo.dueDate ? "Due: " + todo.dueDate : ""}<br>
+              <button class="btn-small" onclick="markDone(${todo.id})">✔️ Done</button>
+              <button class="btn-small edit-btn" onclick="editTodo(${todo.id})">✏️ Edit</button>
+              <button class="btn-small delete-btn" onclick="deleteTodo(${todo.id})">🗑 Delete</button>
+            `;
+            list.appendChild(div);
+          });
+        });
+    }
+
+    function addTodo() {
+      const title = document.getElementById("title").value;
+      const description = document.getElementById("description").value;
+      const dueDate = document.getElementById("dueDate").value;
+
+      if (!title || !description) {
+        alert("Please enter both title and description.");
+        return;
+      }
+
+      const data = { title, description, completed: false, dueDate };
+
+      const method = editingId ? "PUT" : "POST";
+      const url = editingId ? `${apiUrl}/${editingId}` : apiUrl;
+
+      fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+      })
+      .then(() => {
+        document.getElementById("title").value = "";
+        document.getElementById("description").value = "";
+        document.getElementById("dueDate").value = "";
+        editingId = null;
+        loadTodos();
+      });
+    }
+
+    function editTodo(id) {
+      fetch(`${apiUrl}/${id}`)
+        .then(res => res.json())
+        .then(todo => {
+          document.getElementById("title").value = todo.title;
+          document.getElementById("description").value = todo.description;
+          editingId = todo.id;
+        });
+    }
+
+    function markDone(id) {
+      fetch(`${apiUrl}/${id}`)
+        .then(res => res.json())
+        .then(todo => {
+          todo.completed = true;
+          return fetch(`${apiUrl}/${id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(todo)
+          });
+        })
+        .then(() => loadTodos());
+    }
+
+    function deleteTodo(id) {
+      fetch(`${apiUrl}/${id}`, {
+        method: "DELETE"
+      })
+      .then(() => loadTodos());
+    }
+  </script>
+</body>
+</html>
